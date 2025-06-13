@@ -9,7 +9,7 @@ source(here::here("source", "common.R"), echo = FALSE)
 
 # import C++ functions
 grow_polygon <- NULL # hack to shut the lintr up
-cpp_file <- "polygon_05.cpp"
+cpp_file <- "polygon_03.cpp"
 Rcpp::sourceCpp(here::here("source", cpp_file))
 
 # functions ---------------------------------------------------------------
@@ -54,7 +54,7 @@ smudged_polygon <- function(seed, shape, noise1 = 0, noise2 = 2, noise3 = 0.5) {
 
   base <- shape |> 
     grow_polygon_l(
-      iterations = 120, 
+      iterations = 60, 
       noise = noise1
     )
   
@@ -142,13 +142,13 @@ generate_lgbtiq_palette <- function(seed, n) {
     intersex  = c("#FFD800", "#7902AA")
   )
 
-  #shades <- unlist(sample(queers, 1))
-  shades <- queers$rainbow
+  shades <- unlist(sample(queers, 1))
+  #shades <- queers$rainbow
   origin <- gsub("[0-9]$", "", names(shades[1]))
   #message(origin)
   ns <- length(shades)
-  blacks <- sample(c("#000000", "#222222"), ns, TRUE)
-  shades <- dplyr::if_else(runif(ns) < .33, blacks, shades)
+  blacks <- sample(c("#000000", "#111111"), ns, TRUE)
+  shades <- dplyr::if_else(runif(ns) < 0, blacks, shades)
   #message(names(shades[1]))
   sample(shades, n, TRUE)
 }
@@ -159,14 +159,14 @@ art_generator <- function(seed) {
   output <- output_path(name, version, seed, "png")
   message("generating ", output)
   
-  n_row <- 5
-  n_col <- 5
+  n_row <- 8
+  n_col <- 8
   n <- n_row * n_col
   dat <- list()
   
   sides <- 6
   theta <- (0:sides) * pi * 2 / sides
-  theta <- theta - pi / sides # choose rotation (pi/sides is "squares not diamonds")
+  #theta <- theta - pi / sides # choose rotation (pi/sides is "squares not diamonds")
 
   shape <- tibble::tibble(
     x = sin(theta) / cos(pi / sides), # divisor ensures width spans (-1, 1) for the pi/sides rotation
@@ -175,23 +175,19 @@ art_generator <- function(seed) {
   )
   shape$seg_len[sides + 1] <- 0
 
-  scale <- 1.5
+  scale <- 2
 
   hex_shade <- generate_lgbtiq_palette(seed, n = n + 1)
   hex_seed <- sample(1:10000, n)
   #hex_size <- runif(n, min = 1.5, max = 1.5)
   hex_noise <- runif(n, min = .9, max = 1.2)
-  bg <- "#000000"
+  #bg <- "#000000"
+  bg <- hex_shade[n + 1]
 
   i <- 0
   for(r in 1:n_row) {
     for(c in 1:n_col) {
-      if (r %in% c(1, n_row) & c %in% c(1, n_col)) {
-        is_corner <- 1
-      } else {
-        is_corner <- 0
-      }
-      if (runif(1) < .5 | is_corner) { 
+      if (runif(1) < .3) { 
         i <- i + 1
         dat[[i]] <- smudged_polygon(
           seed = hex_seed[i], 
@@ -203,7 +199,8 @@ art_generator <- function(seed) {
         dplyr::mutate(
           fill = hex_shade[i], 
           x = x * scale + (c - 1) * 2 - (n_col - 1),
-          y = y * scale + (r - 1) - (n_row - 1)/2,
+          #y = y * scale + (r - 1) - (n_row - 1)/2,
+          y = y * scale + (r - 1) * 2 - (n_row - 1),
           id = paste0("id", id, "hex", i, sep = "_")
         )
       }
@@ -221,7 +218,8 @@ art_generator <- function(seed) {
 
   #print(dplyr::distinct(dat, id, fill, s, dilution))
   
-  y_edge <- (n_row + 2) / 2
+  #y_edge <- (n_row + 2) / 2
+  y_edge <- (n_row + 1) 
   x_edge <- (n_col + 1) 
 
   pic <- dat |> 
@@ -229,7 +227,7 @@ art_generator <- function(seed) {
       x, y, 
       group = id, 
       fill = fill, 
-      alpha = .03 * dilution)
+      alpha = .05 * dilution)
     ) +
     ggplot2::geom_polygon(colour = NA, show.legend = FALSE) + 
     ggplot2::scale_fill_identity() +
